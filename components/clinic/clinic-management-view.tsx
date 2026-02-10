@@ -239,7 +239,7 @@ export function ClinicManagementView() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-foreground">Nome da Clínica</label>
-                <Input className="mt-1" defaultValue="OdontoConnect Clínica" />
+                <Input className="mt-1" defaultValue="SyncOdonto Clínica" />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">CNPJ</label>

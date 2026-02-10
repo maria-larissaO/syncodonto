@@ -1,53 +1,64 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { Users, CheckCircle, Brain, Leaf, TrendingUp, TrendingDown } from "lucide-react"
+"use client"
 
-const stats = [
-  {
-    icon: Users,
-    label: "Pacientes Atendidos",
-    value: "142",
-    subtitle: "Este mês",
-    change: "+12%",
-    trend: "up",
-    color: "text-primary",
-    bgColor: "bg-primary/10",
-  },
-  {
-    icon: CheckCircle,
-    label: "Evolução Clínica Positiva",
-    value: "89%",
-    subtitle: "Taxa de melhoria",
-    change: "+8%",
-    trend: "up",
-    color: "text-success",
-    bgColor: "bg-success/10",
-  },
-  {
-    icon: Brain,
-    label: "Análises com IA",
-    value: "37",
-    subtitle: "Esta semana",
-    change: "IA",
-    trend: "neutral",
-    color: "text-purple-600",
-    bgColor: "bg-purple-600/10",
-  },
-  {
-    icon: Leaf,
-    label: "Papel Economizado",
-    value: "2.847",
-    subtitle: "Folhas este mês",
-    change: "-100%",
-    trend: "down",
-    color: "text-success",
-    bgColor: "bg-success/10",
-  },
-]
+import { Card, CardContent } from "@/components/ui/card"
+import { Users, CheckCircle, Brain, Calendar, Loader2 } from "lucide-react"
+import { useDashboard } from "@/lib/hooks/use-data"
 
 export function DashboardStats() {
+  const { stats, isLoading } = useDashboard()
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-6 flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  const statsData = [
+    {
+      icon: Users,
+      label: "Pacientes Ativos",
+      value: stats?.totalPatients?.toString() || "0",
+      subtitle: "Total cadastrados",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+    },
+    {
+      icon: Calendar,
+      label: "Consultas Hoje",
+      value: stats?.appointmentsToday?.toString() || "0",
+      subtitle: "Agendamentos do dia",
+      color: "text-blue-600",
+      bgColor: "bg-blue-600/10",
+    },
+    {
+      icon: CheckCircle,
+      label: "Tratamentos Pendentes",
+      value: stats?.pendingTreatments?.toString() || "0",
+      subtitle: "Em andamento",
+      color: "text-amber-600",
+      bgColor: "bg-amber-600/10",
+    },
+    {
+      icon: Brain,
+      label: "Analises com IA",
+      value: stats?.aiAnalysesToday?.toString() || "0",
+      subtitle: "Realizadas hoje",
+      color: "text-purple-600",
+      bgColor: "bg-purple-600/10",
+    },
+  ]
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat) => {
+      {statsData.map((stat) => {
         const Icon = stat.icon
         return (
           <Card key={stat.label}>
@@ -62,17 +73,6 @@ export function DashboardStats() {
                   <p className="mt-3 text-sm text-muted-foreground">{stat.label}</p>
                   <p className="mt-1 text-2xl font-bold text-foreground">{stat.value}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{stat.subtitle}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  {stat.trend === "up" && <TrendingUp className="h-4 w-4 text-success" />}
-                  {stat.trend === "down" && <TrendingDown className="h-4 w-4 text-success" />}
-                  <span
-                    className={`text-xs font-medium ${
-                      stat.trend === "up" ? "text-success" : stat.trend === "down" ? "text-success" : "text-primary"
-                    }`}
-                  >
-                    {stat.change}
-                  </span>
                 </div>
               </div>
             </CardContent>

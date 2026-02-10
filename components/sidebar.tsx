@@ -6,10 +6,7 @@ import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
   Users,
-  FileText,
-  MapPin,
   Calendar,
-  TrendingUp,
   FileStack,
   Building2,
   BarChart3,
@@ -20,10 +17,7 @@ import {
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Users, label: "Lista de Pacientes", href: "/pacientes" },
-  { icon: FileText, label: "Prontuário Eletrônico", href: "/prontuario" },
-  { icon: MapPin, label: "Mapa Odontológico", href: "/mapa-odontologico" },
   { icon: Calendar, label: "Agenda Inteligente", href: "/agenda" },
-  { icon: TrendingUp, label: "Progresso do Paciente", href: "/progresso" },
   { icon: FileStack, label: "Gestão Paperless", href: "/gestao-paperless" },
   { icon: Building2, label: "Gestão da Clínica", href: "/gestao-clinica" },
   { icon: BarChart3, label: "Relatórios", href: "/relatorios" },
@@ -56,7 +50,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                 <div className="h-4 w-4 rounded-full bg-primary-foreground" />
               </div>
-              <span className="text-lg font-semibold text-foreground">OdontoConnect</span>
+              <span className="text-lg font-semibold text-foreground">SyncOdonto</span>
             </div>
             <button onClick={onClose} className="lg:hidden text-muted-foreground hover:text-foreground">
               <X className="h-5 w-5" />

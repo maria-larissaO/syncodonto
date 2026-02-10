@@ -1,10 +1,5 @@
-import { AppLayout } from "@/components/app-layout"
-import { PatientProgressView } from "@/components/progress/patient-progress-view"
+import { Redirect } from "@/components/redirect"
 
 export default function ProgressoPage() {
-  return (
-    <AppLayout>
-      <PatientProgressView />
-    </AppLayout>
-  )
+  return <Redirect to="/prontuario" />
 }

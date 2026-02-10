@@ -1,10 +1,5 @@
-import { AppLayout } from "@/components/app-layout"
-import { DentalChartView } from "@/components/dental-chart/dental-chart-view"
+import { Redirect } from "@/components/redirect"
 
 export default function MapaOdontologicoPage() {
-  return (
-    <AppLayout>
-      <DentalChartView />
-    </AppLayout>
-  )
+  return <Redirect to="/prontuario" />
 }
