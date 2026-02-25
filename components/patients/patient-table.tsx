@@ -99,8 +99,28 @@ export function PatientTable({ searchQuery, activeTab }: PatientTableProps) {
   }
 
   const handleSave = async () => {
-    if (!form.full_name) {
-      toast.error("Nome e obrigatorio")
+    if (!form.full_name.trim()) {
+      toast.error("Nome completo e obrigatorio")
+      return
+    }
+    if (!form.email.trim()) {
+      toast.error("Email e obrigatorio")
+      return
+    }
+    if (!form.phone.trim()) {
+      toast.error("Telefone e obrigatorio")
+      return
+    }
+    if (!form.date_of_birth) {
+      toast.error("Data de nascimento e obrigatoria")
+      return
+    }
+    if (!form.cpf.trim()) {
+      toast.error("CPF e obrigatorio")
+      return
+    }
+    if (!form.address.trim()) {
+      toast.error("Endereco e obrigatorio")
       return
     }
 
@@ -229,8 +249,8 @@ export function PatientTable({ searchQuery, activeTab }: PatientTableProps) {
               <DialogTitle>{editingPatient ? "Editar Paciente" : "Cadastrar Novo Paciente"}</DialogTitle>
               <DialogDescription>
                 {editingPatient
-                  ? "Atualize os dados do paciente."
-                  : "Preencha os dados do paciente. O historico medico e opcional."}
+                  ? "Atualize os dados do paciente. Campos com * sao obrigatorios."
+                  : "Preencha os dados do paciente. Campos com * sao obrigatorios."}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -246,7 +266,7 @@ export function PatientTable({ searchQuery, activeTab }: PatientTableProps) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email *</Label>
                   <Input
                     id="email"
                     type="email"
@@ -256,7 +276,7 @@ export function PatientTable({ searchQuery, activeTab }: PatientTableProps) {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="phone">Telefone</Label>
+                  <Label htmlFor="phone">Telefone *</Label>
                   <Input
                     id="phone"
                     value={form.phone}
@@ -267,7 +287,7 @@ export function PatientTable({ searchQuery, activeTab }: PatientTableProps) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="date_of_birth">Data de Nascimento</Label>
+                  <Label htmlFor="date_of_birth">Data de Nascimento *</Label>
                   <Input
                     id="date_of_birth"
                     type="date"
@@ -276,7 +296,7 @@ export function PatientTable({ searchQuery, activeTab }: PatientTableProps) {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="gender">Genero</Label>
+                  <Label htmlFor="gender">Genero *</Label>
                   <Select
                     value={form.gender}
                     onValueChange={(value: "Masculino" | "Feminino" | "Outro") =>
@@ -295,7 +315,7 @@ export function PatientTable({ searchQuery, activeTab }: PatientTableProps) {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="cpf">CPF</Label>
+                <Label htmlFor="cpf">CPF *</Label>
                 <Input
                   id="cpf"
                   value={form.cpf}
@@ -308,7 +328,7 @@ export function PatientTable({ searchQuery, activeTab }: PatientTableProps) {
               <div className="grid gap-2">
                 <Label htmlFor="address" className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5" />
-                  Endereco
+                  Endereco *
                 </Label>
                 <Textarea
                   id="address"

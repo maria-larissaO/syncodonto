@@ -1,47 +1,33 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
+
+export type ToothCondition = "healthy" | "restored" | "cavity" | "canal" | "missing" | "implant" | "none"
+
+export const CONDITIONS: { value: ToothCondition; label: string; color: string; dotColor: string }[] = [
+  { value: "none", label: "Sem Registro", color: "bg-muted hover:bg-muted/80 border-border", dotColor: "bg-muted-foreground" },
+  { value: "healthy", label: "Saudavel", color: "bg-success hover:bg-success/80 border-success", dotColor: "bg-success" },
+  { value: "restored", label: "Restaurado", color: "bg-primary hover:bg-primary/80 border-primary", dotColor: "bg-primary" },
+  { value: "cavity", label: "Carie", color: "bg-warning hover:bg-warning/80 border-warning", dotColor: "bg-warning" },
+  { value: "canal", label: "Tratamento de Canal", color: "bg-danger hover:bg-danger/80 border-danger", dotColor: "bg-danger" },
+  { value: "missing", label: "Ausente", color: "bg-zinc-400 hover:bg-zinc-400/80 border-zinc-400", dotColor: "bg-zinc-400" },
+  { value: "implant", label: "Implante", color: "bg-violet-500 hover:bg-violet-400/80 border-violet-500", dotColor: "bg-violet-500" },
+]
 
 interface DentalChartProps {
   selectedTooth: number | null
   onToothSelect: (tooth: number) => void
+  toothData: Record<number, ToothCondition>
+  onConditionChange?: (tooth: number, condition: ToothCondition) => void
 }
 
-// Tooth status mapping
-const toothStatus: Record<number, string> = {
-  11: "healthy",
-  12: "healthy",
-  13: "healthy",
-  14: "healthy",
-  15: "healthy",
-  16: "restored",
-  21: "warning",
-  22: "restored",
-  23: "restored",
-  36: "canal",
-  46: "restored",
+const getToothColor = (condition: ToothCondition) => {
+  return CONDITIONS.find(c => c.value === condition)?.color || CONDITIONS[0].color
 }
 
-const getToothColor = (status: string, isSelected: boolean) => {
-  if (isSelected) {
-    return "bg-primary border-primary ring-2 ring-primary ring-offset-2"
-  }
-
-  switch (status) {
-    case "healthy":
-      return "bg-success hover:bg-success/80 border-success"
-    case "restored":
-      return "bg-primary hover:bg-primary/80 border-primary"
-    case "warning":
-      return "bg-warning hover:bg-warning/80 border-warning"
-    case "canal":
-      return "bg-danger hover:bg-danger/80 border-danger"
-    default:
-      return "bg-muted hover:bg-muted/80 border-border"
-  }
-}
-
-export function DentalChart({ selectedTooth, onToothSelect }: DentalChartProps) {
+export function DentalChart({ selectedTooth, onToothSelect, toothData, onConditionChange }: DentalChartProps) {
   const upperTeeth = [
     [18, 17, 16, 15, 14, 13, 12, 11],
     [21, 22, 23, 24, 25, 26, 27, 28],
@@ -53,25 +39,52 @@ export function DentalChart({ selectedTooth, onToothSelect }: DentalChartProps) 
   ]
 
   const renderTooth = (toothNumber: number) => {
-    const status = toothStatus[toothNumber] || "default"
+    const condition = toothData[toothNumber] || "none"
     const isSelected = selectedTooth === toothNumber
+    const isMissing = condition === "missing"
 
     return (
-      <button
-        key={toothNumber}
-        onClick={() => onToothSelect(toothNumber)}
-        className={cn(
-          "relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-lg border-2 transition-all hover:scale-105",
-          getToothColor(status, isSelected),
-        )}
-      >
-        <span className={cn("text-xs font-semibold", isSelected ? "text-primary-foreground" : "text-foreground")}>
-          {toothNumber}
-        </span>
-        {isSelected && (
-          <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary border-2 border-card" />
-        )}
-      </button>
+      <Popover key={toothNumber}>
+        <PopoverTrigger asChild>
+          <button
+            onClick={() => onToothSelect(toothNumber)}
+            className={cn(
+              "relative flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-lg border-2 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50",
+              isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+              isMissing && "opacity-50 line-through",
+              getToothColor(condition),
+            )}
+          >
+            <span className={cn(
+              "text-xs font-bold",
+              condition === "none" ? "text-muted-foreground" : "text-foreground",
+              isSelected && "text-foreground",
+            )}>
+              {toothNumber}
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-52 p-2" align="center" side="bottom">
+          <p className="text-xs font-semibold text-foreground mb-2 px-1">Dente {toothNumber}</p>
+          <div className="flex flex-col gap-0.5">
+            {CONDITIONS.map(c => (
+              <Button
+                key={c.value}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "justify-start gap-2 h-8 text-xs font-medium",
+                  condition === c.value && "bg-accent"
+                )}
+                onClick={() => onConditionChange(toothNumber, c.value)}
+              >
+                <div className={cn("h-3 w-3 rounded-full shrink-0", c.dotColor)} />
+                {c.label}
+              </Button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
     )
   }
 
@@ -82,12 +95,9 @@ export function DentalChart({ selectedTooth, onToothSelect }: DentalChartProps) 
         <div className="mb-3 text-center">
           <span className="text-sm font-medium text-muted-foreground">Arcada Superior</span>
         </div>
-        <div className="flex justify-center gap-8">
-          <div className="flex gap-1 sm:gap-2">{upperTeeth[0].map((tooth) => renderTooth(tooth))}</div>
-          <div className="flex gap-1 sm:gap-2">{upperTeeth[1].map((tooth) => renderTooth(tooth))}</div>
-        </div>
-        <div className="mt-2 text-center">
-          <span className="text-xs text-muted-foreground">Vista do Dentista</span>
+        <div className="flex justify-center gap-6 sm:gap-8">
+          <div className="flex gap-1 sm:gap-1.5">{upperTeeth[0].map(renderTooth)}</div>
+          <div className="flex gap-1 sm:gap-1.5">{upperTeeth[1].map(renderTooth)}</div>
         </div>
       </div>
 
@@ -95,9 +105,9 @@ export function DentalChart({ selectedTooth, onToothSelect }: DentalChartProps) 
 
       {/* Lower Teeth */}
       <div>
-        <div className="flex justify-center gap-8">
-          <div className="flex gap-1 sm:gap-2">{lowerTeeth[0].map((tooth) => renderTooth(tooth))}</div>
-          <div className="flex gap-1 sm:gap-2">{lowerTeeth[1].map((tooth) => renderTooth(tooth))}</div>
+        <div className="flex justify-center gap-6 sm:gap-8">
+          <div className="flex gap-1 sm:gap-1.5">{lowerTeeth[0].map(renderTooth)}</div>
+          <div className="flex gap-1 sm:gap-1.5">{lowerTeeth[1].map(renderTooth)}</div>
         </div>
         <div className="mt-3 text-center">
           <span className="text-sm font-medium text-muted-foreground">Arcada Inferior</span>

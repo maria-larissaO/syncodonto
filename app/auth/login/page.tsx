@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { createClient } from '@/lib/supabase/client'
+import { loginAction } from '@/app/auth/actions'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -31,30 +31,21 @@ export default function Page() {
     setError(null)
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (error) throw error
-      router.push('/')
-      router.refresh()
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        if (error.message.includes('Supabase nao esta configurado')) {
-          setError('Supabase nao esta configurado. Por favor, conecte a integracao do Supabase no painel lateral.')
-        } else if (error.message.includes('Failed to fetch')) {
-          setError('Erro de conexao. Verifique se o Supabase esta configurado corretamente.')
-        } else if (error.message.includes('Invalid login credentials')) {
+      const result = await loginAction(email, password)
+      if (result.error) {
+        if (result.error.includes('Invalid login credentials')) {
           setError('Email ou senha incorretos. Verifique tambem se confirmou seu email.')
-        } else if (error.message.includes('Email not confirmed')) {
+        } else if (result.error.includes('Email not confirmed')) {
           setError('Email nao confirmado. Verifique sua caixa de entrada e confirme seu email antes de fazer login.')
         } else {
-          setError(error.message)
+          setError(result.error)
         }
       } else {
-        setError('Ocorreu um erro desconhecido')
+        router.push('/')
+        router.refresh()
       }
+    } catch {
+      setError('Erro de conexao. Tente novamente.')
     } finally {
       setIsLoading(false)
     }

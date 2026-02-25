@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { createClient } from '@/lib/supabase/client'
+import { signUpAction } from '@/app/auth/actions'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -40,35 +40,15 @@ export default function Page() {
     }
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/`,
-          data: {
-            full_name: `${firstName} ${lastName}`.trim(),
-            first_name: firstName,
-            last_name: lastName,
-          },
-        },
-      })
-      if (error) throw error
-      router.push('/auth/sign-up-success')
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        if (error.message.includes('Supabase nao esta configurado')) {
-          setError('Supabase nao esta configurado. Por favor, conecte a integracao do Supabase no painel lateral.')
-        } else if (error.message.includes('Failed to fetch')) {
-          setError('Erro de conexao. Verifique se o Supabase esta configurado corretamente.')
-        } else {
-          setError(error.message)
-        }
+      const fullName = `${firstName} ${lastName}`.trim()
+      const result = await signUpAction(email, password, fullName, firstName, lastName)
+      if (result.error) {
+        setError(result.error)
       } else {
-        setError('Ocorreu um erro desconhecido')
+        router.push('/auth/sign-up-success')
       }
+    } catch {
+      setError('Erro de conexao. Tente novamente.')
     } finally {
       setIsLoading(false)
     }

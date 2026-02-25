@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const startDate = searchParams.get("startDate")
   const endDate = searchParams.get("endDate")
   const status = searchParams.get("status")
-  const patientId = searchParams.get("patientId")
+  const patientId = searchParams.get("patientId") || searchParams.get("patient_id")
 
   let query = supabase
     .from("appointments")

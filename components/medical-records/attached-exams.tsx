@@ -34,6 +34,7 @@ interface Exam {
   title: string
   exam_type: string
   file_url: string | null
+  content: string | null
   created_at: string
 }
 
@@ -50,6 +51,7 @@ export function AttachedExams({ patientId }: AttachedExamsProps) {
   const [title, setTitle] = useState("")
   const [examType, setExamType] = useState("Radiografia")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewExam, setPreviewExam] = useState<Exam | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const exams: Exam[] = data?.data || []
@@ -163,16 +165,14 @@ export function AttachedExams({ patientId }: AttachedExamsProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  {(exam as any).file_url && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-primary"
-                      onClick={() => window.open((exam as any).file_url, "_blank")}
-                    >
-                      Ver
-                    </Button>
-                  )}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-primary"
+                    onClick={() => setPreviewExam(exam)}
+                  >
+                    Ver
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -196,6 +196,56 @@ export function AttachedExams({ patientId }: AttachedExamsProps) {
           Adicionar Exame
         </Button>
 
+        {/* Preview Dialog */}
+        <Dialog open={!!previewExam} onOpenChange={(open) => !open && setPreviewExam(null)}>
+          <DialogContent className="sm:max-w-[600px] max-h-[85vh]">
+            <DialogHeader>
+              <DialogTitle>{previewExam?.title}</DialogTitle>
+              <DialogDescription>
+                {previewExam?.content || previewExam?.exam_type} - {previewExam ? new Date(previewExam.created_at).toLocaleDateString("pt-BR") : ""}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              {previewExam?.file_url ? (
+                <div className="space-y-4">
+                  {previewExam.file_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i) ? (
+                    <div className="rounded-lg overflow-hidden border border-border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={previewExam.file_url} alt={previewExam.title} className="w-full h-auto max-h-[60vh] object-contain bg-muted" />
+                    </div>
+                  ) : previewExam.file_url.match(/\.pdf(\?|$)/i) ? (
+                    <iframe src={previewExam.file_url} className="w-full h-[60vh] rounded-lg border border-border" title={previewExam.title} />
+                  ) : (
+                    <div className="text-center py-8 space-y-3">
+                      <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
+                      <p className="text-sm text-muted-foreground">
+                        Arquivo disponivel para download
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex justify-center">
+                    <Button variant="outline" className="bg-transparent gap-2" onClick={() => window.open(previewExam!.file_url!, "_blank")}>
+                      <FileText className="h-4 w-4" />
+                      Abrir em Nova Aba
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 space-y-3">
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum arquivo anexado a este exame.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Tipo: {previewExam?.content || previewExam?.exam_type}
+                  </p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Exam Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[420px]">
             <DialogHeader>

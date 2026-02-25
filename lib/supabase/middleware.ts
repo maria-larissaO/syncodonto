@@ -47,10 +47,22 @@ export async function updateSession(request: NextRequest) {
   // with the Supabase client, your users may be randomly logged out.
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser()
 
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
   const isApiRoute = request.nextUrl.pathname.startsWith('/api')
+
+  // If session is stale/invalid, sign out to clear cookies and redirect
+  if (userError && !isAuthPage) {
+    await supabase.auth.signOut()
+    if (isApiRoute) {
+      return NextResponse.json({ error: "Session expired" }, { status: 401 })
+    }
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    return NextResponse.redirect(url)
+  }
 
   if (!user && !isAuthPage && !isApiRoute) {
     const url = request.nextUrl.clone()

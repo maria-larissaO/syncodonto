@@ -4,17 +4,144 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Users, Calendar, DollarSign, TrendingUp, Clock, UserPlus, Settings } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import {
+  Users, Calendar, DollarSign, TrendingUp, Clock, UserPlus, Settings,
+  Trash2, Loader2, Edit,
+} from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import useSWR from "swr"
+import { toast } from "sonner"
+import Link from "next/link"
+
+const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 export function ClinicManagementView() {
   const [activeTab, setActiveTab] = useState<"equipe" | "financeiro" | "configuracoes">("equipe")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editingMember, setEditingMember] = useState<any>(null)
+
+  const { data: staffRes, mutate: mutateStaff } = useSWR("/api/clinic-staff", fetcher)
+  const staff = staffRes?.data || []
+
+  // Fetch today's appointments to count per doctor
+  const today = new Date().toISOString().split("T")[0]
+  const { data: apptRes } = useSWR(`/api/appointments?date=${today}`, fetcher)
+  const todayAppointments = apptRes?.data || []
+
+  const getAppointmentCount = (doctorName: string) => {
+    return todayAppointments.filter(
+      (a: any) => a.doctor_name === doctorName && a.status !== "Cancelada"
+    ).length
+  }
+
+  const emptyForm = {
+    full_name: "",
+    role: "Dentista",
+    specialty: "",
+    email: "",
+    phone: "",
+  }
+  const [form, setForm] = useState(emptyForm)
+
+  const openCreate = () => {
+    setEditingMember(null)
+    setForm(emptyForm)
+    setIsDialogOpen(true)
+  }
+
+  const openEdit = (member: any) => {
+    setEditingMember(member)
+    setForm({
+      full_name: member.full_name || "",
+      role: member.role || "Dentista",
+      specialty: member.specialty || "",
+      email: member.email || "",
+      phone: member.phone || "",
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleSave = async () => {
+    if (!form.full_name.trim()) {
+      toast.error("Nome e obrigatorio")
+      return
+    }
+    setIsSaving(true)
+    try {
+      if (editingMember) {
+        await fetch("/api/clinic-staff", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingMember.id, ...form }),
+        })
+        toast.success("Membro atualizado!")
+      } else {
+        await fetch("/api/clinic-staff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        })
+        toast.success("Membro adicionado!")
+      }
+      mutateStaff()
+      setIsDialogOpen(false)
+    } catch {
+      toast.error("Erro ao salvar membro")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`/api/clinic-staff?id=${id}`, { method: "DELETE" })
+      toast.success("Membro removido!")
+      mutateStaff()
+    } catch {
+      toast.error("Erro ao remover membro")
+    }
+  }
+
+  const handleToggleActive = async (member: any) => {
+    try {
+      await fetch("/api/clinic-staff", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: member.id, is_active: !member.is_active }),
+      })
+      toast.success(member.is_active ? "Membro desativado" : "Membro ativado")
+      mutateStaff()
+    } catch {
+      toast.error("Erro ao atualizar status")
+    }
+  }
+
+  const activeStaff = staff.filter((s: any) => s.is_active).length
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Gestão da Clínica</h1>
-        <p className="text-muted-foreground mt-1">Gerencie equipe, finanças e operações</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Gestao da Clinica</h1>
+        <p className="text-muted-foreground mt-1">Gerencie equipe, financas e operacoes</p>
       </div>
 
       {/* Key Metrics */}
@@ -22,9 +149,9 @@ export function ClinicManagementView() {
         <Card className="p-4 border-border">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Funcionários Ativos</p>
-              <p className="text-2xl font-bold text-foreground mt-1">12</p>
-              <p className="text-xs text-green-600 mt-1">+2 este mês</p>
+              <p className="text-sm text-muted-foreground">Membros Ativos</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{activeStaff}</p>
+              <p className="text-xs text-muted-foreground mt-1">de {staff.length} cadastrados</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
               <Users className="w-5 h-5 text-primary" />
@@ -35,25 +162,12 @@ export function ClinicManagementView() {
         <Card className="p-4 border-border">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Receita Mensal</p>
-              <p className="text-2xl font-bold text-foreground mt-1">R$ 85.420</p>
-              <p className="text-xs text-green-600 mt-1">+12% vs mês anterior</p>
+              <p className="text-sm text-muted-foreground">Consultas Hoje</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{todayAppointments.length}</p>
+              <p className="text-xs text-muted-foreground mt-1">Agendadas para hoje</p>
             </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-green-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 border-border">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Taxa de Ocupação</p>
-              <p className="text-2xl font-bold text-foreground mt-1">87%</p>
-              <p className="text-xs text-green-600 mt-1">Ótima utilização</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Calendar className="w-5 h-5 text-purple-600" />
+            <div className="p-3 bg-green-500/10 rounded-lg">
+              <Calendar className="w-5 h-5 text-green-600" />
             </div>
           </div>
         </Card>
@@ -61,12 +175,29 @@ export function ClinicManagementView() {
         <Card className="p-4 border-border">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Tempo Médio</p>
-              <p className="text-2xl font-bold text-foreground mt-1">42min</p>
-              <p className="text-xs text-orange-600 mt-1">Por consulta</p>
+              <p className="text-sm text-muted-foreground">Taxa de Ocupacao</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {todayAppointments.length > 0 ? `${Math.min(Math.round((todayAppointments.length / 8) * 100), 100)}%` : "0%"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Base: 8 consultas/dia</p>
             </div>
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <Clock className="w-5 h-5 text-orange-600" />
+            <div className="p-3 bg-purple-500/10 rounded-lg">
+              <Clock className="w-5 h-5 text-purple-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-border">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Concluidas Hoje</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {todayAppointments.filter((a: any) => a.status === "Concluída").length}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Finalizadas</p>
+            </div>
+            <div className="p-3 bg-orange-500/10 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-orange-600" />
             </div>
           </div>
         </Card>
@@ -102,7 +233,7 @@ export function ClinicManagementView() {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Configurações
+          Configuracoes
         </button>
       </div>
 
@@ -110,169 +241,212 @@ export function ClinicManagementView() {
       {activeTab === "equipe" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Membros da Equipe</h2>
-            <Button className="bg-primary hover:bg-primary/90">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Adicionar Membro
-            </Button>
-          </div>
-
-          <div className="grid gap-4">
-            {[
-              { name: "Dr. Carlos Silva", role: "Dentista", status: "Ativo", appointments: 8 },
-              { name: "Dra. Ana Paula", role: "Ortodontista", status: "Ativo", appointments: 6 },
-              { name: "Dr. Roberto Lima", role: "Cirurgião", status: "Ativo", appointments: 4 },
-              { name: "Maria Santos", role: "Higienista", status: "Ativo", appointments: 12 },
-              { name: "João Costa", role: "Recepcionista", status: "Ativo", appointments: 0 },
-            ].map((member, i) => (
-              <Card key={i} className="p-4 border-border">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <span className="text-primary font-semibold">
-                        {member.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </span>
+            <h2 className="text-xl font-semibold text-foreground">Membros da Equipe</h2>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={openCreate}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Adicionar Membro
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>{editingMember ? "Editar Membro" : "Novo Membro"}</DialogTitle>
+                  <DialogDescription>
+                    {editingMember ? "Atualize as informacoes do membro." : "Adicione um novo membro a equipe."}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label>Nome Completo *</Label>
+                    <Input
+                      value={form.full_name}
+                      onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                      placeholder="Dr(a). Nome Sobrenome"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Funcao</Label>
+                      <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Dentista">Dentista</SelectItem>
+                          <SelectItem value="Ortodontista">Ortodontista</SelectItem>
+                          <SelectItem value="Cirurgiao">Cirurgiao</SelectItem>
+                          <SelectItem value="Endodontista">Endodontista</SelectItem>
+                          <SelectItem value="Higienista">Higienista</SelectItem>
+                          <SelectItem value="Recepcionista">Recepcionista</SelectItem>
+                          <SelectItem value="Auxiliar">Auxiliar</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div>
-                      <p className="font-medium text-foreground">{member.name}</p>
-                      <p className="text-sm text-muted-foreground">{member.role}</p>
+                    <div className="grid gap-2">
+                      <Label>Especialidade</Label>
+                      <Input
+                        value={form.specialty}
+                        onChange={(e) => setForm({ ...form, specialty: e.target.value })}
+                        placeholder="Ex: Implantodontia"
+                      />
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-sm text-muted-foreground">Consultas Hoje</p>
-                      <p className="font-semibold text-foreground">{member.appointments}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        value={form.email}
+                        onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        placeholder="email@clinica.com"
+                      />
                     </div>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">{member.status}</span>
-                    <Button variant="outline" size="sm">
-                      <Settings className="w-4 h-4" />
-                    </Button>
+                    <div className="grid gap-2">
+                      <Label>Telefone</Label>
+                      <Input
+                        value={form.phone}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        placeholder="(11) 99999-9999"
+                      />
+                    </div>
                   </div>
                 </div>
-              </Card>
-            ))}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="bg-transparent">
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : editingMember ? "Salvar" : "Adicionar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
+
+          {staff.length === 0 ? (
+            <Card className="p-8 border-border text-center">
+              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">Nenhum membro cadastrado</p>
+              <p className="text-sm text-muted-foreground mt-1">Adicione os membros da sua equipe</p>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {staff.map((member: any) => (
+                <Card key={member.id} className="p-4 border-border">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="text-primary font-semibold text-sm">
+                          {member.full_name
+                            .split(" ")
+                            .map((n: string) => n[0])
+                            .join("")
+                            .substring(0, 2)
+                            .toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{member.full_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {member.role}{member.specialty ? ` - ${member.specialty}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-xs text-muted-foreground">Consultas Hoje</p>
+                        <p className="font-semibold text-foreground">{getAppointmentCount(member.full_name)}</p>
+                      </div>
+                      <Badge
+                        className={
+                          member.is_active
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-pointer"
+                            : "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400 cursor-pointer"
+                        }
+                        onClick={() => handleToggleActive(member)}
+                      >
+                        {member.is_active ? "Ativo" : "Inativo"}
+                      </Badge>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(member)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(member.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {activeTab === "financeiro" && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Visão Financeira</h2>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="p-6 border-border">
-              <h3 className="font-semibold text-foreground mb-4">Receitas do Mês</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Consultas</span>
-                  <span className="font-semibold text-foreground">R$ 45.320</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Procedimentos</span>
-                  <span className="font-semibold text-foreground">R$ 28.650</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Ortodontia</span>
-                  <span className="font-semibold text-foreground">R$ 11.450</span>
-                </div>
-                <div className="border-t border-border pt-3 mt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-foreground">Total</span>
-                    <span className="font-bold text-primary text-lg">R$ 85.420</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 border-border">
-              <h3 className="font-semibold text-foreground mb-4">Despesas do Mês</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Folha de Pagamento</span>
-                  <span className="font-semibold text-foreground">R$ 32.500</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Materiais</span>
-                  <span className="font-semibold text-foreground">R$ 8.200</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Aluguel e Contas</span>
-                  <span className="font-semibold text-foreground">R$ 5.800</span>
-                </div>
-                <div className="border-t border-border pt-3 mt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-foreground">Total</span>
-                    <span className="font-bold text-red-600 text-lg">R$ 46.500</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          <Card className="p-6 border-border bg-green-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-foreground mb-1">Lucro Líquido</h3>
-                <p className="text-sm text-muted-foreground">Dezembro 2024</p>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-green-600">R$ 38.920</p>
-                <p className="text-sm text-green-700 flex items-center gap-1 justify-end">
-                  <TrendingUp className="w-4 h-4" />
-                  +15% vs mês anterior
-                </p>
-              </div>
-            </div>
+          <h2 className="text-xl font-semibold text-foreground">Visao Financeira</h2>
+          <Card className="p-6 border-border">
+            <p className="text-muted-foreground text-center py-4">
+              Modulo financeiro em desenvolvimento. Os dados serao sincronizados com os tratamentos e consultas.
+            </p>
           </Card>
         </div>
       )}
 
       {activeTab === "configuracoes" && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Configurações da Clínica</h2>
+          <h2 className="text-xl font-semibold text-foreground">Configuracoes da Clinica</h2>
 
           <Card className="p-6 border-border">
-            <h3 className="font-semibold text-foreground mb-4">Informações Básicas</h3>
+            <h3 className="font-semibold text-foreground mb-4">Informacoes Basicas</h3>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-foreground">Nome da Clínica</label>
-                <Input className="mt-1" defaultValue="SyncOdonto Clínica" />
+                <label className="text-sm font-medium text-foreground">Nome da Clinica</label>
+                <Input className="mt-1" defaultValue="SyncOdonto Clinica" />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">CNPJ</label>
-                <Input className="mt-1" defaultValue="12.345.678/0001-90" />
+                <Input className="mt-1" placeholder="00.000.000/0001-00" />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Telefone</label>
-                <Input className="mt-1" defaultValue="(11) 98765-4321" />
+                <Input className="mt-1" placeholder="(11) 98765-4321" />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground">Endereço</label>
-                <Input className="mt-1" defaultValue="Rua das Flores, 123 - São Paulo, SP" />
+                <label className="text-sm font-medium text-foreground">Endereco</label>
+                <Input className="mt-1" placeholder="Rua das Flores, 123 - Sao Paulo, SP" />
               </div>
             </div>
           </Card>
 
           <Card className="p-6 border-border">
-            <h3 className="font-semibold text-foreground mb-4">Horário de Funcionamento</h3>
+            <h3 className="font-semibold text-foreground mb-4">Horario de Funcionamento</h3>
             <div className="space-y-3">
-              {["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"].map((dia) => (
+              {["Segunda-feira", "Terca-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"].map((dia) => (
                 <div key={dia} className="flex items-center justify-between">
                   <span className="text-foreground">{dia}</span>
                   <span className="text-muted-foreground">08:00 - 18:00</span>
                 </div>
               ))}
               <div className="flex items-center justify-between">
-                <span className="text-foreground">Sábado</span>
+                <span className="text-foreground">Sabado</span>
                 <span className="text-muted-foreground">08:00 - 12:00</span>
               </div>
             </div>
           </Card>
 
-          <Button className="w-full bg-primary hover:bg-primary/90">Salvar Configurações</Button>
+          <Button className="w-full">Salvar Configuracoes</Button>
         </div>
       )}
     </div>

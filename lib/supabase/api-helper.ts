@@ -6,7 +6,15 @@ export async function getAuthenticatedClient() {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (authError || !user) {
+    if (authError) {
+      // Handle stale/expired sessions gracefully
+      if (authError.message?.includes("session_not_found") || authError.status === 403) {
+        await supabase.auth.signOut()
+      }
+      return { error: NextResponse.json({ error: "Sessao expirada. Faca login novamente." }, { status: 401 }) }
+    }
+
+    if (!user) {
       return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
     }
 

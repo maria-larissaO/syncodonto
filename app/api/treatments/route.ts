@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const { supabase, user } = result as any
 
   const { searchParams } = new URL(request.url)
-  const patientId = searchParams.get("patientId")
+  const patientId = searchParams.get("patientId") || searchParams.get("patient_id")
   const status = searchParams.get("status")
 
   let query = supabase
