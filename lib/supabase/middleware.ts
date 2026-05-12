@@ -43,25 +43,19 @@ export async function updateSession(request: NextRequest) {
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
-  // IMPORTANT: If you remove getUser() and you use server-side rendering
-  // with the Supabase client, your users may be randomly logged out.
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
   const isApiRoute = request.nextUrl.pathname.startsWith('/api')
 
-  // If session is stale/invalid, sign out to clear cookies and redirect
-  if (userError && !isAuthPage) {
-    await supabase.auth.signOut()
-    if (isApiRoute) {
-      return NextResponse.json({ error: "Session expired" }, { status: 401 })
-    }
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
+  // IMPORTANT: If you remove getUser() and you use server-side rendering
+  // with the Supabase client, your users may be randomly logged out.
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch (error) {
+    // Se houver erro (ex: cookies antigos com URL errada), 
+    // consideramos o usuario como nao autenticado
+    console.error('Error getting user:', error)
   }
 
   if (!user && !isAuthPage && !isApiRoute) {

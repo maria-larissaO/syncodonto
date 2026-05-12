@@ -20,7 +20,7 @@ interface DentalChartProps {
   selectedTooth: number | null
   onToothSelect: (tooth: number) => void
   toothData: Record<number, ToothCondition>
-  onConditionChange?: (tooth: number, condition: ToothCondition) => void
+  onConditionChange: (tooth: number, condition: ToothCondition) => void
 }
 
 const getToothColor = (condition: ToothCondition) => {

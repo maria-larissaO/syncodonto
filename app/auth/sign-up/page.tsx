@@ -1,8 +1,6 @@
 'use client'
 
-import React from "react"
-
-import { signUpAction } from '@/app/auth/actions'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -40,10 +38,25 @@ export default function Page() {
     }
 
     try {
+      const supabase = createClient()
       const fullName = `${firstName} ${lastName}`.trim()
-      const result = await signUpAction(email, password, fullName, firstName, lastName)
-      if (result.error) {
-        setError(result.error)
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo:
+            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+            `${window.location.origin}/auth/callback`,
+          data: {
+            full_name: fullName,
+            first_name: firstName,
+            last_name: lastName,
+          },
+        },
+      })
+      
+      if (error) {
+        setError(error.message)
       } else {
         router.push('/auth/sign-up-success')
       }

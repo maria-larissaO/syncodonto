@@ -1,8 +1,6 @@
 'use client'
 
-import React from "react"
-
-import { loginAction } from '@/app/auth/actions'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -30,21 +28,37 @@ export default function Page() {
     setIsLoading(true)
     setError(null)
 
+    console.log("[v0] Starting login process for:", email)
+    console.log("[v0] SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
+
     try {
-      const result = await loginAction(email, password)
-      if (result.error) {
-        if (result.error.includes('Invalid login credentials')) {
+      const supabase = createClient()
+      console.log("[v0] Supabase client created successfully")
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      console.log("[v0] Login response - data:", data)
+      console.log("[v0] Login response - error:", error)
+      
+      if (error) {
+        console.log("[v0] Login error message:", error.message)
+        if (error.message.includes('Invalid login credentials')) {
           setError('Email ou senha incorretos. Verifique tambem se confirmou seu email.')
-        } else if (result.error.includes('Email not confirmed')) {
+        } else if (error.message.includes('Email not confirmed')) {
           setError('Email nao confirmado. Verifique sua caixa de entrada e confirme seu email antes de fazer login.')
         } else {
-          setError(result.error)
+          setError(error.message)
         }
       } else {
+        console.log("[v0] Login successful, redirecting to /")
         router.push('/')
         router.refresh()
       }
-    } catch {
+    } catch (err) {
+      console.error('[v0] Login catch error:', err)
       setError('Erro de conexao. Tente novamente.')
     } finally {
       setIsLoading(false)

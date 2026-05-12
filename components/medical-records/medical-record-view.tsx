@@ -4,8 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Phone, Mail, Calendar, User, ArrowLeft, FileText, MapPin, TrendingUp, Brain } from "lucide-react"
+import { Phone, Mail, Calendar, User, ArrowLeft, FileText, MapPin, TrendingUp, Brain, Loader2 } from "lucide-react"
 import { AttachedExams } from "./attached-exams"
 import { ClinicalHistory } from "./clinical-history"
 import { MedicalInformation } from "./medical-information"
@@ -14,8 +13,7 @@ import { CariesIndexChart } from "@/components/progress/caries-index-chart"
 import { PeriodontalHealthChart } from "@/components/progress/periodontal-health-chart"
 import { ComparisonChart } from "@/components/progress/comparison-chart"
 import { PatientAIAnalysis } from "./patient-ai-analysis"
-import { usePatient, updatePatient } from "@/lib/hooks/use-data"
-import { toast } from "sonner"
+import { usePatient } from "@/lib/hooks/use-data"
 import useSWR from "swr"
 import Link from "next/link"
 
@@ -27,19 +25,9 @@ interface MedicalRecordViewProps {
 }
 
 export function MedicalRecordView({ patientId }: MedicalRecordViewProps) {
-  const { patient, isLoading, mutate: mutatePatient } = usePatient(patientId)
+  const { patient, isLoading } = usePatient(patientId)
   const { data: treatments } = useSWR(`/api/treatments?patient_id=${patientId}`, fetcher)
   const { data: appointments } = useSWR(`/api/appointments?patient_id=${patientId}`, fetcher)
-
-  const handleStatusChange = async (newStatus: string) => {
-    try {
-      await updatePatient(patientId, { status: newStatus } as any)
-      mutatePatient()
-      toast.success(`Status alterado para ${newStatus}`)
-    } catch {
-      toast.error("Erro ao atualizar status")
-    }
-  }
 
   // Build chart data from real treatments
   const treatmentsByMonth = (() => {
@@ -76,12 +64,9 @@ export function MedicalRecordView({ patientId }: MedicalRecordViewProps) {
     }))
   })()
 
-  const totalAppointments = appointments?.length || 0
   const completedAppointments = appointments?.filter((a: any) => a.status === "Concluída").length || 0
-  const pendingAppointments = appointments?.filter((a: any) => a.status === "Pendente" || a.status === "Confirmada").length || 0
   const completedTreatments = treatments?.filter((t: any) => t.status === "Concluido").length || 0
   const totalTreatments = treatments?.length || 0
-  const totalCost = appointments?.reduce((s: number, a: any) => s + (parseFloat(a.cost) || 0), 0) || 0
 
   const getInitials = (name: string) => {
     return name
@@ -151,20 +136,20 @@ export function MedicalRecordView({ patientId }: MedicalRecordViewProps) {
                 {getInitials(patient.full_name)}
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-3">
                   <h2 className="text-2xl font-semibold text-foreground">{patient.full_name}</h2>
-                  <Select value={patient.status || "Ativo"} onValueChange={handleStatusChange}>
-                    <SelectTrigger className="w-auto h-7 text-xs gap-1 px-2 border-dashed">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Ativo">Ativo</SelectItem>
-                      <SelectItem value="Em Tratamento">Em Tratamento</SelectItem>
-                      <SelectItem value="Atencao">Atencao</SelectItem>
-                      <SelectItem value="Alto Risco">Alto Risco</SelectItem>
-                      <SelectItem value="Inativo">Inativo</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Badge
+                    variant={patient.status === "Ativo" ? "default" : "secondary"}
+                    className={
+                      patient.status === "Ativo"
+                        ? "bg-success/10 text-success"
+                        : patient.status === "Em Tratamento"
+                          ? "bg-blue-500/10 text-blue-600"
+                          : ""
+                    }
+                  >
+                    {patient.status}
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   {age ? `${age} anos` : ""} {patient.gender ? `- ${patient.gender}` : ""}
@@ -241,81 +226,35 @@ export function MedicalRecordView({ patientId }: MedicalRecordViewProps) {
 
         {/* Tab: Progresso */}
         <TabsContent value="progresso" className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Real Metrics */}
+          <div className="grid gap-4 sm:grid-cols-3">
             <Card>
-              <CardContent className="p-5">
-                <p className="text-xs font-medium text-muted-foreground">Consultas</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">{totalAppointments}</p>
-                <p className="text-xs text-muted-foreground">{completedAppointments} concluida(s) - {pendingAppointments} pendente(s)</p>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">Total de Tratamentos</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{totalTreatments}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Registrados no sistema</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-5">
-                <p className="text-xs font-medium text-muted-foreground">Tratamentos</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">{totalTreatments}</p>
-                <p className="text-xs text-muted-foreground">
-                  {totalTreatments > 0 ? `${completedTreatments} concluido(s) (${Math.round((completedTreatments / totalTreatments) * 100)}%)` : "Nenhum registrado"}
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">Tratamentos Concluidos</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{completedTreatments}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {totalTreatments > 0 ? `${Math.round((completedTreatments / totalTreatments) * 100)}% de conclusao` : "Nenhum ainda"}
                 </p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-5">
-                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" /> Taxa de Conclusao
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Consultas Realizadas
                 </p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  {totalAppointments > 0 ? `${Math.round((completedAppointments / totalAppointments) * 100)}%` : "0%"}
-                </p>
-                <p className="text-xs text-muted-foreground">Das consultas agendadas</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-5">
-                <p className="text-xs font-medium text-muted-foreground">Valor Total</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  R$ {totalCost.toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground">Em consultas registradas</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{completedAppointments}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Concluidas</p>
               </CardContent>
             </Card>
           </div>
-
-          {/* Appointment History */}
-          {appointments && appointments.length > 0 && (
-            <Card>
-              <CardContent className="p-5">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Historico de Consultas</h3>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {appointments.map((a: any) => (
-                    <div key={a.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="text-center">
-                          <p className="text-xs font-bold text-foreground">{new Date(a.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</p>
-                          <p className="text-[10px] text-muted-foreground">{a.time?.substring(0, 5)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{a.procedure_type}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {a.doctor_name ? `Dr(a). ${a.doctor_name}` : ""}
-                            {a.cost ? ` - R$ ${parseFloat(a.cost).toFixed(2)}` : ""}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge className={
-                        a.status === "Concluída" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" :
-                        a.status === "Cancelada" ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" :
-                        a.status === "Pendente" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" :
-                        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                      }>
-                        {a.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <div className="grid gap-6 lg:grid-cols-2">
             <CariesIndexChart data={treatmentsByMonth} />
